@@ -32,19 +32,40 @@ else:
     user_id = str(uuid.uuid4())
     st.session_state['user_id'] = user_id
 
-if 'llm_chain' not in st.session_state:
-    if (len(sys.argv) > 1):
-        if (sys.argv[1] == 'bedrock'):
-            st.session_state['llm_app'] = bedrock
-            if 'persona' in st.session_state:
-                st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
-            else:
-                # Handle the case where 'persona' is not yet initialized.
-                # You might want to initialize st.session_state.persona or provide a default value.
-                st.session_state['llm_chain'] = bedrock.build_chain(persona="some_default_value")
+# Sidebar for persona selection
+with st.sidebar:
+    st.title("Persona Selection")
+    persona_list = ['Friendly AI', 'Dev', 'Guru', 'Comedian']
+    selected_persona_sidebar = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')
 
+# Initialize session state for persona if not already done
+if 'persona' not in st.session_state:
+    st.session_state.persona = "Friendly AI"
+
+# Update the session state only if it's different
+if st.session_state.persona != selected_persona_sidebar:
+    print(f"Changing persona from {st.session_state.persona} to {selected_persona_sidebar}")  
+    st.session_state.persona = selected_persona_sidebar
+
+print(f"Current Persona: {st.session_state.persona}")
+# Initialize or update the chain based on the persona.
+def update_chain():
+    print(f"Building chain for persona: {st.session_state.persona}")
+    st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
+
+# Initialize chain after persona selection
+# Check if 'llm_chain' needs to be updated or initialized
+if 'llm_chain' not in st.session_state or st.session_state.persona != st.session_state.get('last_persona', None):
+    print(f"Changing persona from {st.session_state.get('last_persona', 'None')} to {st.session_state.persona}")
+    update_chain()
+    st.session_state['last_persona'] = st.session_state.persona
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'bedrock':
+            print(f"Initializing or updating Bedrock chain with persona: {st.session_state.persona}")  # Debug print
+            st.session_state['llm_app'] = bedrock
+            st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
         else:
-            raise Exception("Unsupported LLM: ", sys.argv[1])
+            raise Exception(f"Unsupported LLM: {sys.argv[1]}")
     else:
         raise Exception("Usage: streamlit run app.py <bedrock>")
 
@@ -68,21 +89,6 @@ if "answers" not in st.session_state:
 
 if "input" not in st.session_state:
     st.session_state.input = ""
-
-# Sidebar for persona selection
-with st.sidebar:
-    st.title("Persona Selection")
-    persona_list = ['Friendly AI', 'Dev', 'Guru', 'Comedian']
-    selected_persona_sidebar = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')
-
-
-# Initialize session state for persona if not already done
-if 'persona' not in st.session_state:
-    st.session_state.persona = "Friendly AI"
-
-# Update the session state only if it's different
-if st.session_state.persona != selected_persona_sidebar:
-            st.session_state.persona = selected_persona_sidebar
 
 st.markdown("""
         <style>
@@ -133,6 +139,7 @@ if clear:
     st.session_state["chat_history"] = []
 
 def handle_input():
+    print(f"Handling input: {st.session_state.input}")  # Debug print
     input = st.session_state.input
     question_with_id = {
         'question': input,
@@ -147,6 +154,7 @@ def handle_input():
     llm_chain = st.session_state['llm_chain']
     chain = st.session_state['llm_app']
     result = chain.run_chain(llm_chain, input, chat_history)
+    print(f"Question: {input}, Answer: {result['answer']}")
     answer = result['answer']
     chat_history.append((input, answer))
     
@@ -162,6 +170,8 @@ def handle_input():
         'id': len(st.session_state.questions)
     })
     st.session_state.input = ""
+    print(f"Chat History: {st.session_state['chat_history']}")
+
 
 def write_user_message(md):
     col1, col2 = st.columns([1,12])

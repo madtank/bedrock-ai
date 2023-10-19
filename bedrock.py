@@ -9,6 +9,7 @@ from langchain.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
 from langchain.vectorstores import Chroma
 import sys
 import os
+import argparse
 
 class bcolors:
     HEADER = '\033[95m'
@@ -51,7 +52,8 @@ def build_chain(persona):
         bedrock_embeddings,
     )
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
-
+  
+  # print(f"Building chain for persona: {persona}")  # Debug print
   persona_prompt_modification = {
       'Friendly AI': "I'll be a friendly AI assistant.",
       'Dev': "I'll respond like a software developer.",
@@ -59,21 +61,18 @@ def build_chain(persona):
       'Comedian': "I'll try to keep things funny."
   }
 
-  prompt_template = f"""Human: The AI is talkative and provides specific details from its context but limits it to 240 tokens.
-  If the AI does not know the answer to a question, it truthfully says it 
-  does not know.
-  
-  Assistant: {persona_prompt_modification.get(persona, "I'll be a friendly AI assistant.")}
+  prompt_template = f"""Human: The AI is {persona_prompt_modification.get(persona, "Friendly AI")}
+  Assistant: Acknowledged, I'm this {persona}
 
-  Human: Here are a few documents in <documents> tags:
+  Human: Use the documents and or your knowledge to answer.
   <documents>
   {{context}}
   </documents>
-  Based on the above documents, provide a detailed answer for, {{question}} 
-  Answer "don't know" if not present in the document. 
-  
+  Based on the above, provide a detailed answer for, {{question}}
+
   Assistant:
   """
+
   PROMPT = PromptTemplate(
       template=prompt_template, input_variables=["context", "question"]
   )
@@ -94,10 +93,13 @@ def build_chain(persona):
         condense_question_prompt=standalone_question_prompt, 
         return_source_documents=True, 
         combine_docs_chain_kwargs={"prompt":PROMPT},
-        verbose=True)
+        verbose=False)
+  
+  # print(f"Prompt Template: {prompt_template}")  # for debug
   return qa
 
 def run_chain(chain, prompt: str, history=[]):
+  print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
   return chain({"question": prompt, "chat_history": history})
 
 
@@ -140,11 +142,68 @@ def display_settings_menu():
       print("Invalid input. Please try again.")    
 
 
+def main(current_persona):
+    chat_history = []  # Initialize chat_history outside the loop
+    qa = None  # Initialize the chain variable
+
+    # Display settings menu at startup
+    print("Welcome! Let's set up your initial settings.")
+    display_settings_menu()
+    # Inform user they can change settings later
+    print("Note: You can change these settings at any time by typing '!settings'.")
+    
+    print(f"Current Persona: {current_persona}")
+    print("Hello! How can I help you?")
+    print("Ask a question, start a New search: or CTRL-D to exit.")
+
+    while True:  # Main loop for queries or other input
+        query = input(">")
+        if query.strip() == '!settings':
+          # Open settings menu
+          display_settings_menu()
+          qa = None  # Invalidate the existing chain, so it gets rebuilt on next loop iteration
+          continue
+        elif query.strip() == 'exit':
+          print("Exiting program...")
+          break
+
+        # Build the chain if it's not built yet (or if settings changed)
+        if qa is None:
+          if use_document_retrieval:
+            qa = build_chain(current_persona)  # Build chain for Kendra or document-based retrieval
+          else:
+            print('Build conversational chain here')
+            # qa = build_conversational_chain()  # Build chain for conversational mode
+
+        if query.strip().lower().startswith("new search:"):
+          query = query.strip().lower().replace("new search:", "")
+          chat_history = []
+        elif len(chat_history) == MAX_HISTORY_LENGTH:
+          chat_history.pop(0)
+
+        # Run the chain based on settings
+        result = run_chain(qa, query, chat_history)
+
+        chat_history.append((query, result["answer"]))
+        print(result['answer'])
+
+        if 'source_documents' in result:
+          print('Sources:')
+          for d in result['source_documents']:
+            print(d.metadata['source'])
+
+
 # Initial default settings
 use_document_retrieval = True
 current_persona = "Default"
 
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description='Choose a persona for the conversational model.')
+  parser.add_argument('--persona', type=str, default='Default',
+                      help='The persona to use for the conversational model')
+
+  args = parser.parse_args()
+  main(args.persona)
   chat_history = []  # Initialize chat_history outside the loop
   qa = None  # Initialize the chain variable
 

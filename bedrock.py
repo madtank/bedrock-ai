@@ -25,7 +25,7 @@ class bcolors:
 
 MAX_HISTORY_LENGTH = 5
 
-def build_chain(use_document_retrieval=False):
+def build_chain(use_document_retrieval=True):
   
   region = "us-west-2"
   llm = Bedrock(
@@ -39,7 +39,7 @@ def build_chain(use_document_retrieval=False):
       # Your existing code for setting up document-based chains
       kendra_index_id = os.environ.get('KENDRA_INDEX_ID', None)
       if kendra_index_id:
-          retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
+        retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
       else:
         # BedrockEmbeddings if not using Kendra
         bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1")
@@ -158,7 +158,7 @@ def display_settings_menu():
 
 
 # Initial default settings
-use_document_retrieval = False
+use_document_retrieval = True
 current_persona = "Default"
 
 if __name__ == "__main__":

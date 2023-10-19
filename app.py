@@ -36,7 +36,13 @@ if 'llm_chain' not in st.session_state:
     if (len(sys.argv) > 1):
         if (sys.argv[1] == 'bedrock'):
             st.session_state['llm_app'] = bedrock
-            st.session_state['llm_chain'] = bedrock.build_chain()
+            if 'persona' in st.session_state:
+                st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
+            else:
+                # Handle the case where 'persona' is not yet initialized.
+                # You might want to initialize st.session_state.persona or provide a default value.
+                st.session_state['llm_chain'] = bedrock.build_chain(persona="some_default_value")
+
         else:
             raise Exception("Unsupported LLM: ", sys.argv[1])
     else:
@@ -63,6 +69,20 @@ if "answers" not in st.session_state:
 if "input" not in st.session_state:
     st.session_state.input = ""
 
+# Sidebar for persona selection
+with st.sidebar:
+    st.title("Persona Selection")
+    persona_list = ['Friendly AI', 'Dev', 'Guru', 'Comedian']
+    selected_persona_sidebar = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')
+
+
+# Initialize session state for persona if not already done
+if 'persona' not in st.session_state:
+    st.session_state.persona = "Friendly AI"
+
+# Update the session state only if it's different
+if st.session_state.persona != selected_persona_sidebar:
+            st.session_state.persona = selected_persona_sidebar
 
 st.markdown("""
         <style>

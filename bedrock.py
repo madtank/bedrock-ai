@@ -4,8 +4,6 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from langchain.llms.bedrock import Bedrock
 from langchain.embeddings import BedrockEmbeddings
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
 from langchain.vectorstores import Chroma
@@ -25,100 +23,85 @@ class bcolors:
 
 MAX_HISTORY_LENGTH = 5
 
-def build_chain(use_document_retrieval=True):
-  
+def build_chain(persona):
   region = "us-west-2"
   llm = Bedrock(
       region_name=region,
       model_kwargs={"max_tokens_to_sample": 300, "temperature": 1, "top_k": 250, "top_p": 0.999, "anthropic_version": "bedrock-2023-05-31"},
       model_id="anthropic.claude-v2"
   )
-
-  # Initialize retriever based on the flag use_document_retrieval
-  if use_document_retrieval:
-      # Your existing code for setting up document-based chains
-      kendra_index_id = os.environ.get('KENDRA_INDEX_ID', None)
-      if kendra_index_id:
-        retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
-      else:
-        # BedrockEmbeddings if not using Kendra
-        bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1")
-
-        # Your existing PDF loader and text splitter
-        loader = PyPDFDirectoryLoader("./data/")
-        documents = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size = 1000,
-            chunk_overlap  = 100,
-        )
-        docs = text_splitter.split_documents(documents)
-
-        vectorstore_chroma = Chroma.from_documents(
-            docs,
-            bedrock_embeddings,
-        )
-        retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
-
-      prompt_template = """Human: The AI is talkative and provides specific details from its context but limits it to 240 tokens.
-      If the AI does not know the answer to a question, it truthfully says it 
-      does not know.
-
-      Assistant: OK, got it, I'll be a talkative truthful AI assistant.
-
-      Human: Here are a few documents in <documents> tags:
-      <documents>
-      {context}
-      </documents>
-      Based on the above documents, provide a detailed answer for, {question} 
-      Answer "don't know" if not present in the document. 
-
-      Assistant:
-      """
-      PROMPT = PromptTemplate(
-          template=prompt_template, input_variables=["context", "question"]
-      )
-      condense_qa_template = """{chat_history}
-      Human:
-      Given the previous conversation and a follow up question below, rephrase the follow up question
-      to be a standalone question.
-
-      Follow Up Question: {question}
-      Standalone Question:
-
-      Assistant:"""
-      standalone_question_prompt = PromptTemplate.from_template(condense_qa_template)
-    
-      qa = ConversationalRetrievalChain.from_llm(
-            llm=llm, 
-            retriever=retriever,
-            condense_question_prompt=standalone_question_prompt, 
-            return_source_documents=True, 
-            combine_docs_chain_kwargs={"prompt":PROMPT},
-            verbose=True)
+  kendra_index_id = os.environ.get('KENDRA_INDEX_ID', None)
+  if kendra_index_id:
+    retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
   else:
-    
-    memory = ConversationBufferMemory(ai_prefix="Assistant")
-    qa = ConversationChain(
-        llm=llm, verbose=False, memory=memory
+    # BedrockEmbeddings if not using Kendra
+    bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1")
+
+    # Your existing PDF loader and text splitter
+    loader = PyPDFDirectoryLoader("./data/")
+    documents = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 1000,
+        chunk_overlap  = 100,
     )
+    docs = text_splitter.split_documents(documents)
 
-    claude_prompt = PromptTemplate.from_template(f"""Human: The following is a friendly conversation between a human and an AI.
+    vectorstore_chroma = Chroma.from_documents(
+        docs,
+        bedrock_embeddings,
+    )
+    retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
 
-    Assistant: Acknowledged. I will respond as a friendly assistant.
+  persona_prompt_modification = {
+      'Friendly AI': "I'll be a friendly AI assistant.",
+      'Dev': "I'll respond like a software developer.",
+      'Guru': "I'll act as a yogi.",
+      'Comedian': "I'll try to keep things funny."
+  }
 
-    Current conversation:
-    {{history}}
+  prompt_template = f"""Human: The AI is talkative and provides specific details from its context but limits it to 240 tokens.
+  If the AI does not know the answer to a question, it truthfully says it 
+  does not know.
+  
+  Assistant: {persona_prompt_modification.get(persona, "I'll be a friendly AI assistant.")}
 
-    Human: {{input}}
+  Human: Here are a few documents in <documents> tags:
+  <documents>
+  {{context}}
+  </documents>
+  Based on the above documents, provide a detailed answer for, {{question}} 
+  Answer "don't know" if not present in the document. 
+  
+  Assistant:
+  """
+  PROMPT = PromptTemplate(
+      template=prompt_template, input_variables=["context", "question"]
+  )
+  condense_qa_template = """{chat_history}
+  Human:
+  Given the previous conversation and a follow up question below, rephrase the follow up question
+  to be a standalone question.
 
-    Assistant:
-    """)
-    qa.prompt = claude_prompt
+  Follow Up Question: {question}
+  Standalone Question:
 
+  Assistant:"""
+  standalone_question_prompt = PromptTemplate.from_template(condense_qa_template)
+
+  qa = ConversationalRetrievalChain.from_llm(
+        llm=llm, 
+        retriever=retriever,
+        condense_question_prompt=standalone_question_prompt, 
+        return_source_documents=True, 
+        combine_docs_chain_kwargs={"prompt":PROMPT},
+        verbose=True)
   return qa
 
 def run_chain(chain, prompt: str, history=[]):
   return chain({"question": prompt, "chat_history": history})
+
+
+#### Debug from CLI Only ####
 
 # Function to display settings menu and update configurations
 def display_settings_menu():

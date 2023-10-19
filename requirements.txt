@@ -1,0 +1,5 @@
+langchain==0.0.306
+boto3>=1.28.27
+streamlit
+pypdf
+chromadb

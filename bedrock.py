@@ -23,14 +23,23 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 MAX_HISTORY_LENGTH = 5
+# Global Persona Mapping
+PERSONA_PROMPT_MODIFICATION = {
+    'Friendly AI': "I'll be a friendly AI assistant.",
+    'Dev': "I'll respond like a software developer.",
+    'Guru': "I'll act as a yogi.",
+    'Comedian': "I'll try to keep things funny."
+}
 
-def build_chain(persona):
+def build_chain(persona="Guru"):
   region = "us-west-2"
   llm = Bedrock(
       region_name=region,
-      model_kwargs={"max_tokens_to_sample": 300, "temperature": 1, "top_k": 250, "top_p": 0.999, "anthropic_version": "bedrock-2023-05-31"},
-      model_id="anthropic.claude-v2"
-  )
+      model_kwargs={"max_tokens_to_sample": 300, 
+                    "temperature": 1, "top_k": 250, "top_p": 0.999, 
+                    "anthropic_version": "bedrock-2023-05-31"},
+                     model_id="anthropic.claude-v1"
+                  )
   kendra_index_id = os.environ.get('KENDRA_INDEX_ID', None)
   if kendra_index_id:
     retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
@@ -54,21 +63,15 @@ def build_chain(persona):
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
   
   # print(f"Building chain for persona: {persona}")  # Debug print
-  persona_prompt_modification = {
-      'Friendly AI': "I'll be a friendly AI assistant.",
-      'Dev': "I'll respond like a software developer.",
-      'Guru': "I'll act as a yogi.",
-      'Comedian': "I'll try to keep things funny."
-  }
 
-  prompt_template = f"""Human: The AI is {persona_prompt_modification.get(persona, "Friendly AI")}
+  prompt_template = f"""Human: The AI is {PERSONA_PROMPT_MODIFICATION.get(persona)}
   Assistant: Acknowledged, I'm this {persona}
 
   Human: Use the documents and or your knowledge to answer.
   <documents>
   {{context}}
   </documents>
-  Based on the above, provide a detailed answer for, {{question}}
+  Based on the above, provide a short answer for, {{question}}
 
   Assistant:
   """
@@ -99,35 +102,32 @@ def build_chain(persona):
   return qa
 
 def run_chain(chain, prompt: str, history=[]):
-  print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
+  # print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
   return chain({"question": prompt, "chat_history": history})
 
 
 #### Debug from CLI Only ####
+#### Debug from CLI Only ####
+
 
 # Function to display settings menu and update configurations
-def display_settings_menu():
-  global use_document_retrieval  # Using global to modify the variable defined outside the function
-  global current_persona  # Same as above
-  
+def display_settings_menu(current_settings):
   while True:
-    print(f"Current Settings - Use Document Retrieval: {use_document_retrieval}, Persona: {current_persona}")
-    user_input = input("Press 'Enter' to continue, or type 'use_doc' to change document retrieval or 'persona' to change persona: ")
-      
+    print(f"Current Settings - Persona: {current_settings['current_persona']}")
+    user_input = input("Press 'Enter' to continue or type 'persona' to change persona: ")
+    
     if user_input == '':
       print("Continuing the chat session...")
       break
     
-    if user_input == 'use_doc':
-      print(f"Current setting for Use Document Retrieval is {use_document_retrieval}")
-      new_setting = input("Type 't' for True or 'f' for False: ").lower()
-      if new_setting in ['t', 'true']:
-        use_document_retrieval = True
-      elif new_setting in ['f', 'false']:
-        use_document_retrieval = False
+    elif user_input == 'persona':
+      print(f"Available Personas: {list(PERSONA_PROMPT_MODIFICATION.keys())}")
+      selected_persona = input("Select a persona: ")
+      if selected_persona in PERSONA_PROMPT_MODIFICATION.keys():
+        current_settings['current_persona'] = selected_persona
+        print(f"Changed persona to {selected_persona}")
       else:
-        print("Invalid input. No changes made.")
-      print(f"Updated Use Document Retrieval to {use_document_retrieval}")
+        print("Invalid persona. No changes made.")
     
     elif user_input == 'persona':
       available_personas = ["Default", "Friendly", "Professional"]
@@ -139,28 +139,24 @@ def display_settings_menu():
       else:
         print("Invalid persona. No changes made.")
     else:
-      print("Invalid input. Please try again.")    
+      print("Invalid input. Please try again.")
+  return current_settings
 
-
-def main(current_persona):
+def main(initial_persona):
+    current_settings = {'current_persona': initial_persona}
     chat_history = []  # Initialize chat_history outside the loop
     qa = None  # Initialize the chain variable
 
     # Display settings menu at startup
     print("Welcome! Let's set up your initial settings.")
-    display_settings_menu()
-    # Inform user they can change settings later
-    print("Note: You can change these settings at any time by typing '!settings'.")
-    
-    print(f"Current Persona: {current_persona}")
-    print("Hello! How can I help you?")
-    print("Ask a question, start a New search: or CTRL-D to exit.")
+    current_settings = display_settings_menu(current_settings)  # Update current_settings
+    # ... (rest of your code remains the same)
 
     while True:  # Main loop for queries or other input
         query = input(">")
         if query.strip() == '!settings':
           # Open settings menu
-          display_settings_menu()
+          current_settings = display_settings_menu(current_settings)  # Update current_settings
           qa = None  # Invalidate the existing chain, so it gets rebuilt on next loop iteration
           continue
         elif query.strip() == 'exit':
@@ -169,11 +165,7 @@ def main(current_persona):
 
         # Build the chain if it's not built yet (or if settings changed)
         if qa is None:
-          if use_document_retrieval:
-            qa = build_chain(current_persona)  # Build chain for Kendra or document-based retrieval
-          else:
-            print('Build conversational chain here')
-            # qa = build_conversational_chain()  # Build chain for conversational mode
+            qa = build_chain(current_settings['current_persona'])
 
         if query.strip().lower().startswith("new search:"):
           query = query.strip().lower().replace("new search:", "")
@@ -193,61 +185,9 @@ def main(current_persona):
             print(d.metadata['source'])
 
 
-# Initial default settings
-use_document_retrieval = True
-current_persona = "Default"
-
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description='Choose a persona for the conversational model.')
-  parser.add_argument('--persona', type=str, default='Default',
-                      help='The persona to use for the conversational model')
-
-  args = parser.parse_args()
-  main(args.persona)
-  chat_history = []  # Initialize chat_history outside the loop
-  qa = None  # Initialize the chain variable
-
-  # Display settings menu at startup
-  print("Welcome! Let's set up your initial settings.")
-  display_settings_menu()
-  # Inform user they can change settings later
-  print("Note: You can change these settings at any time by typing '!settings'.")
-  
-  print(bcolors.OKBLUE + "Hello! How can I help you?" + bcolors.ENDC)
-  print(bcolors.OKCYAN + "Ask a question, start a New search: or CTRL-D to exit." + bcolors.ENDC)
-
-  while True:  # Main loop for queries or other input
-    query = input(">")
-    if query.strip() == '!settings':
-      # Open settings menu
-      display_settings_menu()
-      qa = None  # Invalidate the existing chain, so it gets rebuilt on next loop iteration
-      continue
-    elif query.strip() == 'exit':
-      print("Exiting program...")
-      break
-
-    # Build the chain if it's not built yet (or if settings changed)
-    if qa is None:
-      if use_document_retrieval:
-        qa = build_chain()  # Build chain for Kendra or document-based retrieval
-      else:
-        print('Build conversational chain here')
-        # qa = build_conversational_chain()  # Build chain for conversational mode
-
-    if query.strip().lower().startswith("new search:"):
-      query = query.strip().lower().replace("new search:", "")
-      chat_history = []
-    elif len(chat_history) == MAX_HISTORY_LENGTH:
-      chat_history.pop(0)
-
-    # Run the chain based on settings
-    result = run_chain(qa, query, chat_history)
-
-    chat_history.append((query, result["answer"]))
-    print(bcolors.OKGREEN + result['answer'] + bcolors.ENDC)
-
-    if 'source_documents' in result:
-      print(bcolors.OKGREEN + 'Sources:')
-      for d in result['source_documents']:
-        print(d.metadata['source'])
+    parser = argparse.ArgumentParser(description='Choose a persona for the conversational model.')
+    parser.add_argument('--persona', type=str, default='Default',
+                        help='The persona to use for the conversational model')
+    args = parser.parse_args()
+    main(args.persona)

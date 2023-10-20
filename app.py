@@ -47,7 +47,6 @@ if st.session_state.persona != selected_persona_sidebar:
     print(f"Changing persona from {st.session_state.persona} to {selected_persona_sidebar}")  
     st.session_state.persona = selected_persona_sidebar
 
-print(f"Current Persona: {st.session_state.persona}")
 # Initialize or update the chain based on the persona.
 def update_chain():
     print(f"Building chain for persona: {st.session_state.persona}")

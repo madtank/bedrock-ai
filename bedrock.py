@@ -25,10 +25,11 @@ class bcolors:
 MAX_HISTORY_LENGTH = 5
 # Global Persona Mapping
 PERSONA_PROMPT_MODIFICATION = {
-    'Friendly AI': "I'll be a friendly AI assistant.",
-    'Dev': "I'll respond like a software developer.",
-    'Guru': "I'll act as a yogi.",
-    'Comedian': "I'll try to keep things funny."
+    'Security Analyst': "You should delve into documents to extract and analyze security-related information, ensuring protocols are adhered to.",
+    'Reviewer': "You should meticulously review documents, pointing out key information and potential areas of improvement.",
+    'Document Summarizer': "You should distill lengthy documents into concise, essential summaries, making information easily digestible.",
+    'Analytical Guru': "You should interpret documents, providing a thorough analysis while connecting the dots between content and broader implications.",
+    'Communication Advisor': "You should assist in drafting, improving, and proofreading responses for emails or instant messages. Ensure the responses are articulate, accurate, and professionally composed while maintaining a tone that reflects my communication style."
 }
 
 def build_chain(persona="Guru"):
@@ -65,9 +66,9 @@ def build_chain(persona="Guru"):
   # print(f"Building chain for persona: {persona}")  # Debug print
 
   prompt_template = f"""Human: The AI is {PERSONA_PROMPT_MODIFICATION.get(persona)}
-  Assistant: Acknowledged, I'm this {persona}
+  Assistant: Acknowledged, I'm your {persona}
 
-  Human: Use the documents and or your knowledge to answer.
+  Human: Use the documents and/or your knowledge to answer.
   <documents>
   {{context}}
   </documents>

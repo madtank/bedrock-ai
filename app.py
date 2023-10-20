@@ -35,12 +35,12 @@ else:
 # Sidebar for persona selection
 with st.sidebar:
     st.title("Persona Selection")
-    persona_list = ['Friendly AI', 'Dev', 'Guru', 'Comedian']
+    persona_list = ['Security Analyst', 'Reviewer', 'Document Summarizer', 'Analytical Guru', 'Communication Advisor']
     selected_persona_sidebar = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')
 
 # Initialize session state for persona if not already done
 if 'persona' not in st.session_state:
-    st.session_state.persona = "Friendly AI"
+    st.session_state.persona = "Communication Advisor"
 
 # Update the session state only if it's different
 if st.session_state.persona != selected_persona_sidebar:

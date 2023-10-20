@@ -35,7 +35,7 @@ else:
 # Sidebar for persona selection
 with st.sidebar:
     st.title("Persona Selection")
-    persona_list = ['Security Analyst', 'Reviewer', 'Document Summarizer', 'Analytical Guru', 'Communication Advisor']
+    persona_list = ['Security Analyst', 'Reviewer', 'Document Summarizer', 'Analytical Guru', 'Communication Advisor', 'DevOps Engineer','Python Developer']
     selected_persona_sidebar = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')
 
 # Initialize session state for persona if not already done
@@ -170,6 +170,7 @@ def handle_input():
     })
     st.session_state.input = ""
     print(f"Chat History: {st.session_state['chat_history']}")
+    st.rerun()
 
 
 def write_user_message(md):
@@ -220,4 +221,12 @@ with st.container():
     write_chat_message(a, q)
 
 st.markdown('---')
-input = st.text_input("You are talking to an AI, ask any question.", key="input", on_change=handle_input)
+
+# Add empty space
+for _ in range(2):
+    st.write("")
+
+prompt = st.chat_input("You are talking to an AI, ask any question.")
+if prompt:
+    st.session_state.input = prompt
+    handle_input()

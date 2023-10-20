@@ -29,10 +29,12 @@ PERSONA_PROMPT_MODIFICATION = {
     'Reviewer': "You should meticulously review documents, pointing out key information and potential areas of improvement.",
     'Document Summarizer': "You should distill lengthy documents into concise, essential summaries, making information easily digestible.",
     'Analytical Guru': "You should interpret documents, providing a thorough analysis while connecting the dots between content and broader implications.",
-    'Communication Advisor': "You should assist in drafting, improving, and proofreading responses for emails or instant messages. Ensure the responses are articulate, accurate, and professionally composed while maintaining a tone that reflects my communication style."
+    'Communication Advisor': "You should assist in drafting, improving, and proofreading responses for emails or instant messages. Ensure the responses are articulate, accurate, and professionally composed while maintaining a tone that reflects my communication style.",
+    'DevOps Engineer': "You should help with infrastructure as code tasks, primarily focusing on Terraform. Ensure that best practices are followed and that the code is efficient and secure.",
+    'Python Developer': "You should assist with Python development tasks. This includes debugging, optimizing code, and ensuring that best coding practices are adhered to."
 }
 
-def build_chain(persona="Guru"):
+def build_chain(persona):
   region = "us-west-2"
   llm = Bedrock(
       region_name=region,
@@ -131,7 +133,8 @@ def display_settings_menu(current_settings):
         print("Invalid persona. No changes made.")
     
     elif user_input == 'persona':
-      available_personas = ["Default", "Friendly", "Professional"]
+      available_personas = ['Security Analyst', 'Reviewer', 'Document Summarizer', 
+                            'Analytical Guru', 'Communication Advisor', 'DevOps Engineer','Python Developer']
       print(f"Available Personas: {available_personas}")
       selected_persona = input("Select a persona: ")
       if selected_persona in available_personas:

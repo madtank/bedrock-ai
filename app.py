@@ -10,7 +10,7 @@ USER_ICON = "images/user-icon.png"
 AI_ICON = "images/ai-icon.png"
 MAX_HISTORY_LENGTH = 5
 PROVIDER_MAP = {
-    'bedrock': 'AWS Bedrock Claude V2'
+    'bedrock': 'AWS Bedrock Claude'
 }
 
 # Function to clear chat
@@ -24,14 +24,13 @@ def clear_chat():
 def write_top_bar():
     col1, col2, col3 = st.columns([1,10,2])
     with col1:
-        st.image(AI_ICON, use_column_width='always')
+        st.image(AI_ICON, use_column_width='always')  # Consider updating AI_ICON to a new icon
     with col2:
         selected_provider = sys.argv[1]
-        if selected_provider in PROVIDER_MAP:
-            provider = PROVIDER_MAP[selected_provider]
-        else:
-            provider = selected_provider.capitalize()
-        header = f"An AI App powered by Amazon Kendra and {provider}!"
+        provider = PROVIDER_MAP.get(selected_provider, selected_provider.capitalize())
+        rag_status = "with RAG" if st.session_state.get('use_rag', False) else "without RAG"
+        persona = st.session_state.persona
+        header = f"AI Chatbot: {persona} Persona on Amazon {provider} {rag_status}"
         st.write(f"<h3 class='main-header'>{header}</h3>", unsafe_allow_html=True)
 
 def write_user_message(md):

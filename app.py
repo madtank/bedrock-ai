@@ -13,7 +13,73 @@ PROVIDER_MAP = {
     'bedrock': 'AWS Bedrock Claude V2'
 }
 
-# Sidebar for persona selection
+# Function to clear chat
+def clear_chat():
+    st.session_state.questions = []
+    st.session_state.answers = []
+    st.session_state.input = ""
+    st.session_state["chat_history"] = []
+
+# Top Bar
+def write_top_bar():
+    col1, col2, col3 = st.columns([1,10,2])
+    with col1:
+        st.image(AI_ICON, use_column_width='always')
+    with col2:
+        selected_provider = sys.argv[1]
+        if selected_provider in PROVIDER_MAP:
+            provider = PROVIDER_MAP[selected_provider]
+        else:
+            provider = selected_provider.capitalize()
+        header = f"An AI App powered by Amazon Kendra and {provider}!"
+        st.write(f"<h3 class='main-header'>{header}</h3>", unsafe_allow_html=True)
+
+def write_user_message(md):
+    col1, col2 = st.columns([1,12])
+    
+    with col1:
+        st.image(USER_ICON, use_column_width='always')
+    with col2:
+        escaped_question = md['question'].replace("#", "&#35;")
+        st.warning(escaped_question)
+
+def render_result(result):
+    answer, sources = st.tabs(['Answer', 'Sources'])
+    with answer:
+        render_answer(result['answer'])
+    with sources:
+        if 'source_documents' in result:
+            render_sources(result['source_documents'])
+        else:
+            render_sources([])
+
+def render_answer(answer):
+    col1, col2 = st.columns([1,12])
+    with col1:
+        st.image(AI_ICON, use_column_width='always')
+    with col2:
+        if isinstance(answer, dict):
+            st.info(answer.get('answer', 'No answer found'))
+        else:
+            st.info(answer)
+
+def render_sources(sources):
+    col1, col2 = st.columns([1,12])
+    with col2:
+        with st.expander("Sources"):
+            for s in sources:
+                st.write(s)
+    
+#Each answer will have context of the question asked in order to associate the provided feedback with the respective question
+def write_chat_message(md, q):
+    chat = st.container()
+    with chat:
+        render_answer(md['answer'])
+        if 'sources' in md:
+            render_sources(md['sources'])
+        else:
+            st.write("No sources available.")
+
 # Sidebar for persona selection
 with st.sidebar:
     st.title("Persona Selection")
@@ -23,6 +89,21 @@ with st.sidebar:
     # Toggle for RAG
     use_rag = st.toggle('Use RAG', value=False, key='use_rag')
 
+    # Clear Chat Button
+    clear = st.button("Clear Chat")
+    if clear:
+        clear_chat()
+# Warning about separate conversation modes
+st.sidebar.warning("Note: Claude and RAG modes are separate conversations. Toggling will not clear messages.")
+
+write_top_bar()
+
+# The rest of your code for rendering chat and other UI elements can go here
+if clear:
+    st.session_state.questions = []
+    st.session_state.answers = []
+    st.session_state.input = ""
+    st.session_state["chat_history"] = []
 
 # Initialize session state
 if 'user_id' not in st.session_state:
@@ -138,45 +219,11 @@ def handle_chatbot_input(input, persona):
         'answer': response if isinstance(response, dict) else {'answer': response},
         'id': len(st.session_state.questions)
     })
-
-    # # Additional Chatbot-specific logic
-    # st.write(f"Chatbot Function Executed for {persona} with input: {input}")
-    # st.write(f"Response from Claude: {response if isinstance(response, dict) else response}")
-
     # Assuming you have a list in session_state for storing chat messages
     st.session_state.chat_messages.append({
         'role': 'assistant',
         'message': response
     })
-
-
-# Function to clear chat
-def clear_chat():
-    st.session_state.questions = []
-    st.session_state.answers = []
-    st.session_state.input = ""
-    st.session_state["chat_history"] = []
-
-# Top Bar and Clear Chat Button
-def write_top_bar():
-    col1, col2, col3 = st.columns([1,10,2])
-    with col1:
-        st.image(AI_ICON, use_column_width='always')
-    with col2:
-        selected_provider = sys.argv[1]
-        if selected_provider in PROVIDER_MAP:
-            provider = PROVIDER_MAP[selected_provider]
-        else:
-            provider = selected_provider.capitalize()
-        header = f"An AI App powered by Amazon Kendra and {provider}!"
-        st.write(f"<h3 class='main-header'>{header}</h3>", unsafe_allow_html=True)
-    with col3:
-        clear = st.button("Clear Chat")
-    return clear
-
-clear = write_top_bar()
-if clear:
-    clear_chat()
 
 # Handle user input based on the selected mode (RAG or Chatbot)
 prompt = st.chat_input("You are talking to an AI, ask any question.")
@@ -186,60 +233,6 @@ if prompt:
         handle_rag_input(st.session_state.input, st.session_state.persona)
     else:
         handle_chatbot_input(st.session_state.input, st.session_state.persona)
-
-
-# The rest of your code for rendering chat and other UI elements can go here
-if clear:
-    st.session_state.questions = []
-    st.session_state.answers = []
-    st.session_state.input = ""
-    st.session_state["chat_history"] = []
-
-def write_user_message(md):
-    col1, col2 = st.columns([1,12])
-    
-    with col1:
-        st.image(USER_ICON, use_column_width='always')
-    with col2:
-        st.warning(md['question'])
-
-def render_result(result):
-    answer, sources = st.tabs(['Answer', 'Sources'])
-    with answer:
-        render_answer(result['answer'])
-    with sources:
-        if 'source_documents' in result:
-            render_sources(result['source_documents'])
-        else:
-            render_sources([])
-
-def render_answer(answer):
-    col1, col2 = st.columns([1,12])
-    with col1:
-        st.image(AI_ICON, use_column_width='always')
-    with col2:
-        if isinstance(answer, dict):
-            st.info(answer.get('answer', 'No answer found'))
-        else:
-            st.info(answer)
-
-
-def render_sources(sources):
-    col1, col2 = st.columns([1,12])
-    with col2:
-        with st.expander("Sources"):
-            for s in sources:
-                st.write(s)
-    
-#Each answer will have context of the question asked in order to associate the provided feedback with the respective question
-def write_chat_message(md, q):
-    chat = st.container()
-    with chat:
-        render_answer(md['answer'])
-        if 'sources' in md:
-            render_sources(md['sources'])
-        else:
-            st.write("No sources available.")
 
 with st.container():
   for (q, a) in zip(st.session_state.questions, st.session_state.answers):

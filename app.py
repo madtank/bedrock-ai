@@ -2,7 +2,7 @@
 import streamlit as st
 import uuid
 import sys
-
+from langchain.memory import ConversationBufferMemory
 import bedrock as bedrock  # Assuming bedrock is a module you've created
 
 # Constants and session initialization
@@ -43,11 +43,13 @@ if "answers" not in st.session_state:
 if "input" not in st.session_state:
     st.session_state.input = ""
 
+if 'chat_messages' not in st.session_state:
+    st.session_state.chat_messages = []
+
 # Initialize or update the chain based on the persona.
 def update_chain():
     print(f"Building chain for persona: {st.session_state.persona}")
     st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
-
 
 # Check if 'llm_chain' needs to be updated or initialized
 # Initialize chain for RAG only when the toggle is activated
@@ -110,25 +112,42 @@ def handle_rag_input(input, persona):
     # Additional RAG-specific logic
     st.write(f"RAG Function Executed for {persona} with input: {input}")
 
-def handle_chatbot_input(input, persona, memory):
+
+def handle_chatbot_input(input, persona):
     question_with_id = {
         'question': input,
         'id': len(st.session_state.questions)
     }
     st.session_state.questions.append(question_with_id)
 
+    if 'conversation_memory' not in st.session_state:
+        st.session_state.conversation_memory = ConversationBufferMemory(ai_prefix="Assistant")
+
     # Invoke get_claude_response_without_rag and get the response
-    response = bedrock.get_claude_response_without_rag(input, memory)
-    
+    response = bedrock.get_claude_response_without_rag(input, st.session_state.conversation_memory, persona)
+
+    # # Debugging
+    # print(f"Type of Response: {type(response)}")
+    # if isinstance(response, dict) and 'answer' in response:
+    #     print(f"Answer exists in response: {response['answer']}")
+    # elif isinstance(response, str):
+    #     print(f"Response is a string: {response}")
+
     # Store the answer into session_state
     st.session_state.answers.append({
-        'answer': response['answer'],
+        'answer': response if isinstance(response, dict) else {'answer': response},
         'id': len(st.session_state.questions)
     })
 
-    # Additional Chatbot-specific logic
-    st.write(f"Chatbot Function Executed for {persona} with input: {input}")
-    st.write(f"Response from Claude: {response['answer']}")
+    # # Additional Chatbot-specific logic
+    # st.write(f"Chatbot Function Executed for {persona} with input: {input}")
+    # st.write(f"Response from Claude: {response if isinstance(response, dict) else response}")
+
+    # Assuming you have a list in session_state for storing chat messages
+    st.session_state.chat_messages.append({
+        'role': 'assistant',
+        'message': response
+    })
 
 
 # Function to clear chat
@@ -176,42 +195,6 @@ if clear:
     st.session_state.input = ""
     st.session_state["chat_history"] = []
 
-def handle_input():
-    print(f"Handling input: {st.session_state.input}")  # Debug print
-    input = st.session_state.input
-    question_with_id = {
-        'question': input,
-        'id': len(st.session_state.questions)
-    }
-    st.session_state.questions.append(question_with_id)
-
-    chat_history = st.session_state["chat_history"]
-    if len(chat_history) == MAX_HISTORY_LENGTH:
-        chat_history = chat_history[:-1]
-
-    llm_chain = st.session_state['llm_chain']
-    chain = st.session_state['llm_app']
-    result = chain.run_chain(llm_chain, input, chat_history)
-    print(f"Question: {input}, Answer: {result['answer']}")
-    answer = result['answer']
-    chat_history.append((input, answer))
-    
-    document_list = []
-    if 'source_documents' in result:
-        for d in result['source_documents']:
-            if not (d.metadata['source'] in document_list):
-                document_list.append((d.metadata['source']))
-
-    st.session_state.answers.append({
-        'answer': result,
-        'sources': document_list,
-        'id': len(st.session_state.questions)
-    })
-    st.session_state.input = ""
-    print(f"Chat History: {st.session_state['chat_history']}")
-    st.rerun()
-
-
 def write_user_message(md):
     col1, col2 = st.columns([1,12])
     
@@ -219,7 +202,6 @@ def write_user_message(md):
         st.image(USER_ICON, use_column_width='always')
     with col2:
         st.warning(md['question'])
-
 
 def render_result(result):
     answer, sources = st.tabs(['Answer', 'Sources'])
@@ -236,7 +218,11 @@ def render_answer(answer):
     with col1:
         st.image(AI_ICON, use_column_width='always')
     with col2:
-        st.info(answer['answer'])
+        if isinstance(answer, dict):
+            st.info(answer.get('answer', 'No answer found'))
+        else:
+            st.info(answer)
+
 
 def render_sources(sources):
     col1, col2 = st.columns([1,12])
@@ -244,16 +230,17 @@ def render_sources(sources):
         with st.expander("Sources"):
             for s in sources:
                 st.write(s)
-
     
 #Each answer will have context of the question asked in order to associate the provided feedback with the respective question
 def write_chat_message(md, q):
     chat = st.container()
     with chat:
         render_answer(md['answer'])
-        render_sources(md['sources'])
-    
-        
+        if 'sources' in md:
+            render_sources(md['sources'])
+        else:
+            st.write("No sources available.")
+
 with st.container():
   for (q, a) in zip(st.session_state.questions, st.session_state.answers):
     write_user_message(q)

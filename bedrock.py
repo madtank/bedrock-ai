@@ -109,7 +109,7 @@ def run_chain(chain, prompt: str, history=[]):
   # print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
   return chain({"question": prompt, "chat_history": history})
 
-def get_claude_response_without_rag(prompt, memory):
+def get_claude_response_without_rag(prompt, memory, persona):
     from langchain.memory import ConversationBufferMemory
     from langchain.prompts import PromptTemplate
     from langchain.chains import ConversationChain
@@ -119,22 +119,22 @@ def get_claude_response_without_rag(prompt, memory):
         llm=llm, verbose=False, memory=memory
     )
 
-    # langchain prompts do not always work with all the models. This prompt is tuned for Claude
-    claude_prompt = PromptTemplate.from_template(f"""Human: {prompt}
-
-    Assistant: Acknowledged. I will respond as you ask.
-
+    prompt_template = f"""Human: The AI is {PERSONA_PROMPT_MODIFICATION.get(persona)}
+    Assistant: Acknowledged, I'm your {persona}
     Current conversation:
     {{history}}
 
     Human: {{input}}
 
     Assistant:
-    """)
+    """
+
+    claude_prompt = PromptTemplate.from_template(prompt_template)
 
     conversation.prompt = claude_prompt
     response = conversation.predict(input=prompt)
-    return {'answer': response}
+    
+    return response
 
 
 #### Debug from CLI Only ####

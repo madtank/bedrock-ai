@@ -1,10 +1,11 @@
+
 import streamlit as st
 import uuid
 import sys
 
-import bedrock as bedrock
+import bedrock as bedrock  # Assuming bedrock is a module you've created
 
-
+# Constants and session initialization
 USER_ICON = "images/user-icon.png"
 AI_ICON = "images/ai-icon.png"
 MAX_HISTORY_LENGTH = 5
@@ -12,73 +13,26 @@ PROVIDER_MAP = {
     'bedrock': 'AWS Bedrock Claude V2'
 }
 
-#function to read a properties file and create environment variables
-def read_properties_file(filename):
-    import os
-    import re
-    with open(filename, 'r') as f:
-        for line in f:
-            m = re.match(r'^\s*(\w+)\s*=\s*(.*)\s*$', line)
-            if m:
-                os.environ[m.group(1)] = m.group(2)
-
-
-# Check if the user ID is already stored in the session state
-if 'user_id' in st.session_state:
-    user_id = st.session_state['user_id']
-
-# If the user ID is not yet stored in the session state, generate a random UUID
-else:
-    user_id = str(uuid.uuid4())
-    st.session_state['user_id'] = user_id
-
+# Sidebar for persona selection
 # Sidebar for persona selection
 with st.sidebar:
     st.title("Persona Selection")
     persona_list = ['Security Analyst', 'Reviewer', 'Document Summarizer', 'Analytical Guru', 'Communication Advisor', 'DevOps Engineer','Python Developer']
-    selected_persona_sidebar = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')
+    st.session_state.persona = st.selectbox("Choose a Persona:", persona_list, key='persona_sidebar')  # Update the state directly
+    
+    # Toggle for RAG
+    use_rag = st.toggle('Use RAG', value=False, key='use_rag')
 
-# Initialize session state for persona if not already done
+
+# Initialize session state
+if 'user_id' not in st.session_state:
+    st.session_state['user_id'] = str(uuid.uuid4())
+
 if 'persona' not in st.session_state:
     st.session_state.persona = "Communication Advisor"
 
-# Update the session state only if it's different
-if st.session_state.persona != selected_persona_sidebar:
-    print(f"Changing persona from {st.session_state.persona} to {selected_persona_sidebar}")  
-    st.session_state.persona = selected_persona_sidebar
-
-# Initialize or update the chain based on the persona.
-def update_chain():
-    print(f"Building chain for persona: {st.session_state.persona}")
-    st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
-
-# Initialize chain after persona selection
-# Check if 'llm_chain' needs to be updated or initialized
-if 'llm_chain' not in st.session_state or st.session_state.persona != st.session_state.get('last_persona', None):
-    print(f"Changing persona from {st.session_state.get('last_persona', 'None')} to {st.session_state.persona}")
-    update_chain()
-    st.session_state['last_persona'] = st.session_state.persona
-    if len(sys.argv) > 1:
-        if sys.argv[1] == 'bedrock':
-            print(f"Initializing or updating Bedrock chain with persona: {st.session_state.persona}")  # Debug print
-            st.session_state['llm_app'] = bedrock
-            st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
-        else:
-            raise Exception(f"Unsupported LLM: {sys.argv[1]}")
-    else:
-        raise Exception("Usage: streamlit run app.py <bedrock>")
-
 if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
-    
-if "chats" not in st.session_state:
-    st.session_state.chats = [
-        {
-            'id': 0,
-            'question': '',
-            'answer': ''
-        }
-    ]
 
 if "questions" not in st.session_state:
     st.session_state.questions = []
@@ -89,30 +43,102 @@ if "answers" not in st.session_state:
 if "input" not in st.session_state:
     st.session_state.input = ""
 
-st.markdown("""
-        <style>
-               .block-container {
-                    padding-top: 32px;
-                    padding-bottom: 32px;
-                    padding-left: 0;
-                    padding-right: 0;
-                }
-                .element-container img {
-                    background-color: #000000;
-                }
-
-                .main-header {
-                    font-size: 24px;
-                }
-        </style>
-        """, unsafe_allow_html=True)
-
-def write_logo():
-    col1, col2, col3 = st.columns([5, 1, 5])
-    with col2:
-        st.image(AI_ICON, use_column_width='always') 
+# Initialize or update the chain based on the persona.
+def update_chain():
+    print(f"Building chain for persona: {st.session_state.persona}")
+    st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
 
 
+# Check if 'llm_chain' needs to be updated or initialized
+# Initialize chain for RAG only when the toggle is activated
+if st.session_state.get('use_rag', False):
+    if 'llm_chain' not in st.session_state or st.session_state.persona != st.session_state.get('last_persona', None):
+        print(f"Changing persona from {st.session_state.get('last_persona', 'None')} to {st.session_state.persona}")
+        update_chain()
+        st.session_state['last_persona'] = st.session_state.persona
+        if len(sys.argv) > 1:
+            if sys.argv[1] == 'bedrock':
+                print(f"Initializing or updating Bedrock chain with persona: {st.session_state.persona}")  # Debug print
+                st.session_state['llm_app'] = bedrock
+                st.session_state['llm_chain'] = bedrock.build_chain(persona=st.session_state.persona)
+            else:
+                raise Exception(f"Unsupported LLM: {sys.argv[1]}")
+        else:
+            raise Exception("Usage: streamlit run app.py <bedrock>")
+
+
+def handle_rag_input(input, persona):
+    # Check if 'llm_chain' needs to be updated or initialized
+    if 'llm_chain' not in st.session_state or st.session_state.persona != st.session_state.get('last_persona', None):
+        print(f"Changing persona from {st.session_state.get('last_persona', 'None')} to {st.session_state.persona}")
+        update_chain()
+        st.session_state['last_persona'] = st.session_state.persona
+    print(f"Handling input: {st.session_state.input}")  # Debug print
+    input = st.session_state.input
+    question_with_id = {
+        'question': input,
+        'id': len(st.session_state.questions)
+    }
+    st.session_state.questions.append(question_with_id)
+
+    chat_history = st.session_state["chat_history"]
+    if len(chat_history) == MAX_HISTORY_LENGTH:
+        chat_history = chat_history[:-1]
+
+    llm_chain = st.session_state['llm_chain']
+    chain = st.session_state['llm_app']
+    result = chain.run_chain(llm_chain, input, chat_history)
+    print(f"Question: {input}, Answer: {result['answer']}")
+    answer = result['answer']
+    chat_history.append((input, answer))
+    
+    document_list = []
+    if 'source_documents' in result:
+        for d in result['source_documents']:
+            if not (d.metadata['source'] in document_list):
+                document_list.append((d.metadata['source']))
+
+    st.session_state.answers.append({
+        'answer': result,
+        'sources': document_list,
+        'id': len(st.session_state.questions)
+    })
+    st.session_state.input = ""
+    print(f"Chat History: {st.session_state['chat_history']}")
+    st.rerun()
+    st.session_state.questions.append(question_with_id)
+    # Additional RAG-specific logic
+    st.write(f"RAG Function Executed for {persona} with input: {input}")
+
+def handle_chatbot_input(input, persona, memory):
+    question_with_id = {
+        'question': input,
+        'id': len(st.session_state.questions)
+    }
+    st.session_state.questions.append(question_with_id)
+
+    # Invoke get_claude_response_without_rag and get the response
+    response = bedrock.get_claude_response_without_rag(input, memory)
+    
+    # Store the answer into session_state
+    st.session_state.answers.append({
+        'answer': response['answer'],
+        'id': len(st.session_state.questions)
+    })
+
+    # Additional Chatbot-specific logic
+    st.write(f"Chatbot Function Executed for {persona} with input: {input}")
+    st.write(f"Response from Claude: {response['answer']}")
+
+
+# Function to clear chat
+def clear_chat():
+    st.session_state.questions = []
+    st.session_state.answers = []
+    st.session_state.input = ""
+    st.session_state["chat_history"] = []
+
+# Top Bar and Clear Chat Button
 def write_top_bar():
     col1, col2, col3 = st.columns([1,10,2])
     with col1:
@@ -130,7 +156,20 @@ def write_top_bar():
     return clear
 
 clear = write_top_bar()
+if clear:
+    clear_chat()
 
+# Handle user input based on the selected mode (RAG or Chatbot)
+prompt = st.chat_input("You are talking to an AI, ask any question.")
+if prompt:
+    st.session_state.input = prompt
+    if use_rag:
+        handle_rag_input(st.session_state.input, st.session_state.persona)
+    else:
+        handle_chatbot_input(st.session_state.input, st.session_state.persona)
+
+
+# The rest of your code for rendering chat and other UI elements can go here
 if clear:
     st.session_state.questions = []
     st.session_state.answers = []
@@ -225,8 +264,3 @@ st.markdown('---')
 # Add empty space
 for _ in range(2):
     st.write("")
-
-prompt = st.chat_input("You are talking to an AI, ask any question.")
-if prompt:
-    st.session_state.input = prompt
-    handle_input()

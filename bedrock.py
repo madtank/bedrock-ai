@@ -34,15 +34,16 @@ PERSONA_PROMPT_MODIFICATION = {
     'Python Developer': "You should assist with Python development tasks. This includes debugging, optimizing code, and ensuring that best coding practices are adhered to."
 }
 
+region = "us-west-2"
+llm = Bedrock(
+    region_name=region,
+    model_kwargs={"max_tokens_to_sample": 300, 
+                  "temperature": 1, "top_k": 250, "top_p": 0.999, 
+                  "anthropic_version": "bedrock-2023-05-31"},
+                    model_id="anthropic.claude-v1"
+                )
+
 def build_chain(persona):
-  region = "us-west-2"
-  llm = Bedrock(
-      region_name=region,
-      model_kwargs={"max_tokens_to_sample": 300, 
-                    "temperature": 1, "top_k": 250, "top_p": 0.999, 
-                    "anthropic_version": "bedrock-2023-05-31"},
-                     model_id="anthropic.claude-v1"
-                  )
   kendra_index_id = os.environ.get('KENDRA_INDEX_ID', None)
   if kendra_index_id:
     retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
@@ -108,10 +109,36 @@ def run_chain(chain, prompt: str, history=[]):
   # print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
   return chain({"question": prompt, "chat_history": history})
 
+def get_claude_response_without_rag(prompt, memory):
+    from langchain.memory import ConversationBufferMemory
+    from langchain.prompts import PromptTemplate
+    from langchain.chains import ConversationChain
+
+    # Use the passed-in memory object for the conversation
+    conversation = ConversationChain(
+        llm=llm, verbose=False, memory=memory
+    )
+
+    # langchain prompts do not always work with all the models. This prompt is tuned for Claude
+    claude_prompt = PromptTemplate.from_template(f"""Human: {prompt}
+
+    Assistant: Acknowledged. I will respond as you ask.
+
+    Current conversation:
+    {{history}}
+
+    Human: {{input}}
+
+    Assistant:
+    """)
+
+    conversation.prompt = claude_prompt
+    response = conversation.predict(input=prompt)
+    return {'answer': response}
+
 
 #### Debug from CLI Only ####
 #### Debug from CLI Only ####
-
 
 # Function to display settings menu and update configurations
 def display_settings_menu(current_settings):

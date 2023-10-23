@@ -22,28 +22,20 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+#Globals
 MAX_HISTORY_LENGTH = 5
-# Global Persona Mapping
-PERSONA_PROMPT_MODIFICATION = {
-    'Security Analyst': "You should delve into documents to extract and analyze security-related information, ensuring protocols are adhered to.",
-    'Reviewer': "You should meticulously review documents, pointing out key information and potential areas of improvement.",
-    'Document Summarizer': "You should distill lengthy documents into concise, essential summaries, making information easily digestible.",
-    'Analytical Guru': "You should interpret documents, providing a thorough analysis while connecting the dots between content and broader implications.",
-    'Communication Advisor': "You should assist in drafting, improving, and proofreading responses for emails or instant messages. Ensure the responses are articulate, accurate, and professionally composed while maintaining a tone that reflects my communication style.",
-    'DevOps Engineer': "You should help with infrastructure as code tasks, primarily focusing on Terraform. Ensure that best practices are followed and that the code is efficient and secure.",
-    'Python Developer': "You should assist with Python development tasks. This includes debugging, optimizing code, and ensuring that best coding practices are adhered to."
-}
-
 region = "us-west-2"
 llm = Bedrock(
     region_name=region,
-    model_kwargs={"max_tokens_to_sample": 300, 
-                  "temperature": 1, "top_k": 250, "top_p": 0.999, 
+    model_kwargs={"max_tokens_to_sample": 500,  # Increased from 300
+                  "temperature": 0.8,  # Slightly lowered
+                  "top_k": 250,
+                  "top_p": 0.999,
                   "anthropic_version": "bedrock-2023-05-31"},
-                    model_id="anthropic.claude-v1"
-                )
+    model_id="anthropic.claude-v1"
+)
 
-def build_chain(persona):
+def build_chain(persona, persona_description):
   kendra_index_id = os.environ.get('KENDRA_INDEX_ID', None)
   if kendra_index_id:
     retriever = AmazonKendraRetriever(index_id=kendra_index_id, top_k=5, region_name=region)
@@ -67,15 +59,14 @@ def build_chain(persona):
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
   
   # print(f"Building chain for persona: {persona}")  # Debug print
-
-  prompt_template = f"""Human: The AI is {PERSONA_PROMPT_MODIFICATION.get(persona)}
+  prompt_template = f"""Human: The AI is {persona_description} Please keep responses brief and to the point.
   Assistant: Acknowledged, I'm your {persona}
 
   Human: Use the documents and/or your knowledge to answer.
   <documents>
   {{context}}
   </documents>
-  Based on the above, provide a short answer for, {{question}}
+  Based on the above, provide an answer for, {{question}}
 
   Assistant:
   """
@@ -109,7 +100,7 @@ def run_chain(chain, prompt: str, history=[]):
   # print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
   return chain({"question": prompt, "chat_history": history})
 
-def get_claude_response_without_rag(prompt, memory, persona):
+def get_claude_response_without_rag(prompt, memory, persona, persona_description):
     from langchain.memory import ConversationBufferMemory
     from langchain.prompts import PromptTemplate
     from langchain.chains import ConversationChain
@@ -119,7 +110,7 @@ def get_claude_response_without_rag(prompt, memory, persona):
         llm=llm, verbose=False, memory=memory
     )
 
-    prompt_template = f"""Human: The AI is {PERSONA_PROMPT_MODIFICATION.get(persona)}
+    prompt_template = f"""Human: The AI is {persona_description} Please keep responses brief and to the point.
     Assistant: Acknowledged, I'm your {persona}
     Current conversation:
     {{history}}
@@ -135,90 +126,3 @@ def get_claude_response_without_rag(prompt, memory, persona):
     response = conversation.predict(input=prompt)
     
     return response
-
-
-#### Debug from CLI Only ####
-#### Debug from CLI Only ####
-
-# Function to display settings menu and update configurations
-def display_settings_menu(current_settings):
-  while True:
-    print(f"Current Settings - Persona: {current_settings['current_persona']}")
-    user_input = input("Press 'Enter' to continue or type 'persona' to change persona: ")
-    
-    if user_input == '':
-      print("Continuing the chat session...")
-      break
-    
-    elif user_input == 'persona':
-      print(f"Available Personas: {list(PERSONA_PROMPT_MODIFICATION.keys())}")
-      selected_persona = input("Select a persona: ")
-      if selected_persona in PERSONA_PROMPT_MODIFICATION.keys():
-        current_settings['current_persona'] = selected_persona
-        print(f"Changed persona to {selected_persona}")
-      else:
-        print("Invalid persona. No changes made.")
-    
-    elif user_input == 'persona':
-      available_personas = ['Security Analyst', 'Reviewer', 'Document Summarizer', 
-                            'Analytical Guru', 'Communication Advisor', 'DevOps Engineer','Python Developer']
-      print(f"Available Personas: {available_personas}")
-      selected_persona = input("Select a persona: ")
-      if selected_persona in available_personas:
-        current_persona = selected_persona
-        print(f"Changed persona to {current_persona}")
-      else:
-        print("Invalid persona. No changes made.")
-    else:
-      print("Invalid input. Please try again.")
-  return current_settings
-
-def main(initial_persona):
-    current_settings = {'current_persona': initial_persona}
-    chat_history = []  # Initialize chat_history outside the loop
-    qa = None  # Initialize the chain variable
-
-    # Display settings menu at startup
-    print("Welcome! Let's set up your initial settings.")
-    current_settings = display_settings_menu(current_settings)  # Update current_settings
-    # ... (rest of your code remains the same)
-
-    while True:  # Main loop for queries or other input
-        query = input(">")
-        if query.strip() == '!settings':
-          # Open settings menu
-          current_settings = display_settings_menu(current_settings)  # Update current_settings
-          qa = None  # Invalidate the existing chain, so it gets rebuilt on next loop iteration
-          continue
-        elif query.strip() == 'exit':
-          print("Exiting program...")
-          break
-
-        # Build the chain if it's not built yet (or if settings changed)
-        if qa is None:
-            qa = build_chain(current_settings['current_persona'])
-
-        if query.strip().lower().startswith("new search:"):
-          query = query.strip().lower().replace("new search:", "")
-          chat_history = []
-        elif len(chat_history) == MAX_HISTORY_LENGTH:
-          chat_history.pop(0)
-
-        # Run the chain based on settings
-        result = run_chain(qa, query, chat_history)
-
-        chat_history.append((query, result["answer"]))
-        print(result['answer'])
-
-        if 'source_documents' in result:
-          print('Sources:')
-          for d in result['source_documents']:
-            print(d.metadata['source'])
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Choose a persona for the conversational model.')
-    parser.add_argument('--persona', type=str, default='Default',
-                        help='The persona to use for the conversational model')
-    args = parser.parse_args()
-    main(args.persona)

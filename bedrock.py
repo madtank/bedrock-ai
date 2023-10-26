@@ -32,7 +32,7 @@ llm = Bedrock(
                   "top_k": 250,
                   "top_p": 0.999,
                   "anthropic_version": "bedrock-2023-05-31"},
-    model_id="anthropic.claude-v1"
+    model_id="anthropic.claude-v2"
 )
 
 def build_chain(persona, persona_description):
@@ -59,30 +59,32 @@ def build_chain(persona, persona_description):
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
   
   # print(f"Building chain for persona: {persona}")  # Debug print
-  prompt_template = f"""Human: The AI is {persona_description} Please keep responses brief and to the point.
-  Assistant: Acknowledged, I'm your {persona}
+  prompt_template = f"""Human: The AI is {persona_description}. Aim for answers that are both concise and comprehensive.
+  Assistant: Understood, I'm currently your {persona}.
 
-  Human: Use the documents and/or your knowledge to answer.
+  Human: Answer based on the documents, your own knowledge, my input, or any combination thereof.
+
   <documents>
   {{context}}
   </documents>
-  Based on the above, provide an answer for, {{question}}
+  Respond to: {{question}}
 
   Assistant:
   """
+
 
   PROMPT = PromptTemplate(
       template=prompt_template, input_variables=["context", "question"]
   )
   condense_qa_template = """{chat_history}
   Human:
-  Given the previous conversation and a follow up question below, rephrase the follow up question
-  to be a standalone question.
+  Given the previous conversation and a follow-up below, rephrase the follow-up to be standalone.
 
-  Follow Up Question: {question}
-  Standalone Question:
+  Follow Up: {question}
+  Standalone Response:
 
-  Assistant:"""
+  Assistant:
+  """
   standalone_question_prompt = PromptTemplate.from_template(condense_qa_template)
 
   qa = ConversationalRetrievalChain.from_llm(
@@ -110,8 +112,8 @@ def get_claude_response_without_rag(prompt, memory, persona, persona_description
         llm=llm, verbose=False, memory=memory
     )
 
-    prompt_template = f"""Human: The AI is {persona_description} Please keep responses brief and to the point.
-    Assistant: Acknowledged, I'm your {persona}
+    prompt_template = f"""Human: The AI is {persona_description}. Aim for answers that are both concise and comprehensive.
+    Assistant: Understood, I'm currently your {persona}.
     Current conversation:
     {{history}}
 

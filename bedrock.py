@@ -68,6 +68,7 @@ def build_chain(persona, persona_description):
   Assistant: Let me consider this, hopefully it's helpful.
   Human: If not don't worry about it, you can say I don't know if that feels better.
   {{question}}
+  Assistant:
   """
 
 
@@ -111,6 +112,7 @@ def get_claude_response_without_rag(prompt, memory, persona, persona_description
     )
 
     prompt_template = f"""Human: {persona_description}.
+    Assistant: Glad I'm a good {persona}!
     Current conversation:
     {{history}}
 

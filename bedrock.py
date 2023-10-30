@@ -60,16 +60,14 @@ def build_chain(persona, persona_description):
   
   # print(f"Building chain for persona: {persona}")  # Debug print
   prompt_template = f"""Human: The AI is {persona_description}. Aim for answers that are both concise and comprehensive.
-  Assistant: Understood, I'm currently your {persona}.
-
-  Human: Answer based on the documents, your own knowledge, my input, or any combination thereof.
-
+  Assistant: Glad I'm a good {persona}!
+  Human: Here's something that might help.
   <documents>
   {{context}}
   </documents>
-  Respond to: {{question}}
-
-  Assistant:
+  Assistant: Let me consider this, hopefully it's helpful.
+  Human: If not don't worry about it, you can say I don't know if that feels better.
+  {{question}}
   """
 
 
@@ -112,8 +110,7 @@ def get_claude_response_without_rag(prompt, memory, persona, persona_description
         llm=llm, verbose=False, memory=memory
     )
 
-    prompt_template = f"""Human: The AI is {persona_description}. Aim for answers that are both concise and comprehensive.
-    Assistant: Understood, I'm currently your {persona}.
+    prompt_template = f"""Human: {persona_description}.
     Current conversation:
     {{history}}
 

@@ -19,6 +19,7 @@ PROVIDER_MAP = {
 def clear_chat():
     st.session_state.questions = []
     st.session_state.answers = []
+    st.session_state.conversation_memory = ConversationBufferMemory(ai_prefix="Assistant")
     st.session_state.input = ""
     st.session_state["chat_history"] = []
 

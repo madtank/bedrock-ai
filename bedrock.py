@@ -109,7 +109,7 @@ def get_claude_response_without_rag(prompt, memory, persona, persona_description
 
     # Use the passed-in memory object for the conversation
     conversation = ConversationChain(
-        llm=llm, verbose=True, memory=memory
+        llm=llm, verbose=False, memory=memory
     )
 
     prompt_template = f"""Human: {persona_description}. 

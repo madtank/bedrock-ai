@@ -80,18 +80,6 @@ def write_chat_message(md, q):
         elif st.session_state.get('use_rag', False):
             st.write("No sources available.")
         # No else block, so nothing related to sources is displayed if not using RAG
-            # JavaScript for auto-scroll
-        st.markdown(
-            """
-            <script type="text/javascript">
-                setTimeout(function() {
-                    window.scrollTo(0, document.body.scrollHeight);
-                }, 100);  // 100 milliseconds
-            </script>
-            """,
-            unsafe_allow_html=True,
-        )
-
 
 # Read the YAML file
 with open("data/persona.yaml", 'r') as file:

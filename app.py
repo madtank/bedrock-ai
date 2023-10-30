@@ -22,7 +22,6 @@ def clear_chat():
     st.session_state.conversation_memory = ConversationBufferMemory(ai_prefix="Assistant")
     st.session_state.input = ""
     st.session_state["chat_history"] = []
-    # Function to clear chat
 
 # Top Bar
 def write_top_bar():

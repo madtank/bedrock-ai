@@ -10,7 +10,7 @@ import yaml
 # Constants and session initialization
 USER_ICON = "images/user-icon.png"
 AI_ICON = "images/ai-icon.png"
-MAX_HISTORY_LENGTH = 5
+MAX_HISTORY_LENGTH = 50
 PROVIDER_MAP = {
     'bedrock': 'AWS Bedrock Claude'
 }
@@ -36,8 +36,7 @@ def write_top_bar():
         st.write(f"<h3 class='main-header'>{header}</h3>", unsafe_allow_html=True)
 
 def write_user_message(md):
-    col1, col2 = st.columns([1,12])
-    
+    col1, col2 = st.columns([1,18])
     with col1:
         st.image(USER_ICON, use_column_width='always')
     with col2:
@@ -55,7 +54,7 @@ def render_result(result):
             render_sources([])
 
 def render_answer(answer):
-    col1, col2 = st.columns([1,12])
+    col1, col2 = st.columns([1,18])
     with col1:
         st.image(AI_ICON, use_column_width='always')
     with col2:

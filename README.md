@@ -27,6 +27,9 @@ Run the following command to install these packages:
 pip install -r requirements.txt
 ```
 
+Rename data/persona.yaml.example to data/persona.yaml.
+This file can be modified to customize the AI's persona.
+
 ## Usage
 
 ### Running the App via Streamlit

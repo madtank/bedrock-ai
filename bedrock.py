@@ -58,7 +58,7 @@ def build_chain(persona, persona_description):
     )
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
   
-  # print(f"Building chain for persona: {persona}")  # Debug print
+  print(f"Building chain for persona: {persona}")  # Debug print
   prompt_template = f"""{persona_description}
   Human: Here's some documents that might help.
   <documents>

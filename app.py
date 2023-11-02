@@ -142,7 +142,7 @@ if 'chat_messages' not in st.session_state:
 def update_chain():
     print(f"Building chain for persona: {st.session_state.persona}")
     persona_description = personas[st.session_state.persona]['description']
-    st.session_state['llm_chain'] = bedrock.build_chain(persona_description)
+    st.session_state['llm_chain'] = bedrock.build_chain(persona, persona_description)
 
 # Check if 'llm_chain' needs to be updated or initialized
 # Initialize chain for RAG only when the toggle is activated

@@ -59,15 +59,13 @@ def build_chain(persona, persona_description):
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
   
   # print(f"Building chain for persona: {persona}")  # Debug print
-  prompt_template = f"""Human: {persona_description}. 
-  Aim for answers that are both concise and comprehensive.
-  Assistant: I'm an expert {persona}.
-  Human: Here's something that might help.
+  prompt_template = f"""{persona_description}
+  Human: Here's some documents that might help.
   <documents>
   {{context}}
   </documents>
-  Assistant: Let me consider this, hopefully it's helpful.
-  Human: If not don't worry about it, respond the best you can to the following:
+  Assistant: Let me consider these documents.
+  Human: Respond to the following:
   {{question}}
   Assistant:
   """
@@ -102,8 +100,7 @@ def run_chain(chain, prompt: str, history=[]):
   # print(f"Running chain with prompt: {prompt}, history: {history}")  # Debug print
   return chain({"question": prompt, "chat_history": history})
 
-def get_claude_response_without_rag(prompt, memory, persona, persona_description):
-    from langchain.memory import ConversationBufferMemory
+def get_claude_response_without_rag(prompt, memory, persona_description):
     from langchain.prompts import PromptTemplate
     from langchain.chains import ConversationChain
 
@@ -112,9 +109,7 @@ def get_claude_response_without_rag(prompt, memory, persona, persona_description
         llm=llm, verbose=False, memory=memory
     )
 
-    prompt_template = f"""Human: {persona_description}. 
-    Aim for answers that are both concise and comprehensive.
-    Assistant: I'm an expert {persona}.
+    prompt_template = f"""{persona_description}
     Current conversation:
     {{history}}
 

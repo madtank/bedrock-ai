@@ -102,8 +102,10 @@ with st.sidebar:
     clear = st.button("Clear Chat")
     if clear:
         clear_chat()
-# Warning about separate conversation modes
-st.sidebar.warning("Heads Up: The 'Use RAG' toggle switches between two different chat modes. Each mode has its own separate chat for this session, but your current chat won't be erased.")
+# Warning about experimental purpose
+st.sidebar.warning('''Please do not enter sensitive info, 
+                   this experimental app is for demo purposes only 
+                   and not intended for production use.''')
 
 write_top_bar()
 
@@ -140,7 +142,7 @@ if 'chat_messages' not in st.session_state:
 def update_chain():
     print(f"Building chain for persona: {st.session_state.persona}")
     persona_description = personas[st.session_state.persona]['description']
-    st.session_state['llm_chain'] = bedrock.build_chain(persona, persona_description)
+    st.session_state['llm_chain'] = bedrock.build_chain(persona_description)
 
 # Check if 'llm_chain' needs to be updated or initialized
 # Initialize chain for RAG only when the toggle is activated
@@ -214,7 +216,7 @@ def handle_chatbot_input(input, persona):
         st.session_state.conversation_memory = ConversationBufferMemory(ai_prefix="Assistant")
 
     # Invoke get_claude_response_without_rag and get the response
-    response = bedrock.get_claude_response_without_rag(input, st.session_state.conversation_memory, persona, persona_description)
+    response = bedrock.get_claude_response_without_rag(input, st.session_state.conversation_memory, persona_description)
 
     # # Debugging
     # print(f"Type of Response: {type(response)}")

@@ -1,4 +1,4 @@
-# Project Title
+# Bedrock Persona AI
 
 This project is a combination of a Streamlit application (`app.py`) and a backend module (`bedrock.py`). The Streamlit app provides an interactive interface, while `bedrock.py` handles data retrieval, possibly from AWS services like Amazon Kendra.
 

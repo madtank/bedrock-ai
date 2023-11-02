@@ -28,7 +28,7 @@ region = "us-west-2"
 llm = Bedrock(
     region_name=region,
     model_kwargs={"max_tokens_to_sample": 500,  # Increased from 300
-                  "temperature": 0.8,  # Slightly lowered
+                  "temperature": 1.0,  # Slightly lowered
                   "top_k": 250,
                   "top_p": 0.999,
                   "anthropic_version": "bedrock-2023-05-31"},
@@ -59,16 +59,21 @@ def build_chain(persona, persona_description):
     retriever = vectorstore_chroma.as_retriever()  # Assuming Chroma has an as_retriever() method
   
   print(f"Building chain for persona: {persona}")  # Debug print
+
   prompt_template = f"""{persona_description}
-  Human: Here's some documents that might help.
+  Human: Here are some documents that might help. If the documents don't apply, 
+  please still respond but make it clear that the information is not contained in the documents.
   <documents>
   {{context}}
   </documents>
-  Assistant: Let me consider these documents.
+  Assistant: I understand. If the documents do not contain the necessary information, 
+  I will make that clear in my response.
   Human: Respond to the following:
   {{question}}
   Assistant:
   """
+
+
 
 
   PROMPT = PromptTemplate(

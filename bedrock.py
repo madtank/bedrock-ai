@@ -61,8 +61,9 @@ def build_chain(persona, persona_description):
   print(f"Building chain for persona: {persona}")  # Debug print
 
   prompt_template = f"""{persona_description}
-  Human: Here are some documents that might help. If the documents don't apply, 
-  please still respond but make it clear that the information is not contained in the documents.
+  Human: Here are some documents, if the documents don't apply, 
+  make it clear that the information is not contained in the documents.
+  Please keep your response under 240 tokens.
   <documents>
   {{context}}
   </documents>
@@ -73,15 +74,12 @@ def build_chain(persona, persona_description):
   Assistant:
   """
 
-
-
-
   PROMPT = PromptTemplate(
       template=prompt_template, input_variables=["context", "question"]
   )
   condense_qa_template = """{chat_history}
   Human:
-  Given the previous conversation and a follow-up below, rephrase the follow-up to be standalone.
+  Given the previous conversation and a follow-up below, rephrase the follow-up to be standalone. Please keep your response under 240 tokens.
 
   Follow Up: {question}
   Standalone Response:

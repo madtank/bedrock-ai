@@ -61,14 +61,13 @@ def build_chain(persona, persona_description):
   print(f"Building chain for persona: {persona}")  # Debug print
 
   prompt_template = f"""{persona_description}
-  Human: Here are some documents, if the documents don't apply, 
-  make it clear that the information is not contained in the documents.
-  Please keep your response under 240 tokens.
+  Human: Here are some documents that may be relevant. Please analyze them and provide your best response based on their content. 
+  Keep your response under 240 tokens. If the documents do not contain any relevant information, clearly state that.
   <documents>
   {{context}}
   </documents>
-  Assistant: I understand. If the documents do not contain the necessary information, 
-  I will make that clear in my response.
+  Assistant: Based on the documents provided, I will analyze and respond to the best of my ability. 
+  If the necessary information is not contained within these documents, I will explicitly mention it.
   Human: Respond to the following:
   {{question}}
   Assistant:
